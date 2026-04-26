@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Prioritas CSR Manufaktur | WebGIS</title>
+    
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="Map_page_style.css">
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- ══════════════════════════════════
+             SIDEBAR KIRI — Panel Kontrol
+        ══════════════════════════════════ -->
+        <aside class="sidebar sidebar-left" aria-label="Panel Kontrol Utama">
+            
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+                <a href="../index.html">
+                    <i data-lucide="home" style="width:12px; height:12px;"></i> Home
+                </a>
+                <span style="color:#E8541A; opacity:0.5;" aria-hidden="true">|</span>
+                <span class="active" aria-current="page">Map Page</span>
+            </nav>
+
+            <header class="header-box">
+                <div>
+                    <div class="header-title-group">
+                        <div class="header-icon" aria-hidden="true">
+                            <svg style="width:20px; height:20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <h1 class="header-title">GeoCSR</h1>
+                    </div>
+                    <p style="font-size:0.75rem; color:#6b7280; margin-top:4px;">Webgis untuk menentukan desa Prioritas CSR</p>
+                </div>
+            </header>
+
+           <div style="display: flex; border-bottom: 1px solid #e5e7eb; background: #f8fafc; z-index: 10;">
+                <button class="sidebar-tab-btn active" id="btn-tab-analisis" onclick="switchSidebarTab('analisis')">Analisis Prioritas</button>
+                <button class="sidebar-tab-btn" id="btn-tab-visual" onclick="switchSidebarTab('visual')">Hasil Analisis</button>
+            </div>
+
+            <div id="content-analisis" class="scroll-content">
+                <section aria-labelledby="title-location">
+                    <h2 id="title-location" class="section-title"><i data-lucide="factory" style="width: 15px; height: 15px;"></i> Tentukan Lokasi Perusahaan</h2>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <button id="btn-add-location" class="btn btn-primary"><i data-lucide="crosshair" style="width:16px; height:16px;"></i> Klik Peta Untuk Tentukan Lokasi</button>
+                        <button id="btn-my-location" class="btn btn-outline"><i data-lucide="navigation" style="width:16px; height:16px;"></i> Gunakan Lokasi Saya</button>
+                    </div>
+                    <div id="location-list" style="margin-top:8px;"></div>
+                </section>
+
+                <section aria-labelledby="title-radius">
+                    <h2 id="title-radius" class="section-title"><i data-lucide="radar" style="width:16px; height:16px;"></i> Jangkauan Operasional</h2>
+                    <div class="preset-grid" style="margin-bottom:10px;">
+                        <button class="preset-btn active" id="btn-mode-radius" onclick="setRangeMode('radius')"><i data-lucide="circle-dashed" style="width:12px; height:12px;"></i> Radius</button>
+                        <button class="preset-btn" id="btn-mode-isochrone" onclick="setRangeMode('isochrone')"><i data-lucide="route" style="width:12px; height:12px;"></i> Isochrone</button>
+                    </div>
+                    <div id="panel-radius">
+                        <select id="radius-select" class="select-input">
+                            <option value="3">3 Kilometer</option>
+                            <option value="5">5 Kilometer</option>
+                            <option value="10" selected>10 Kilometer</option>
+                            <option value="15">15 Kilometer</option>
+                            <option value="20">20 Kilometer</option>
+                            <option value="custom">... Opsional (isi sendiri)</option>
+                        </select>
+                        <div id="radius-custom-wrap" style="display:none; margin-top:6px; display:none;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <input type="number" id="radius-custom-input" class="select-input" min="1" max="200" placeholder="Contoh: 7" style="flex:1;">
+                                <span style="font-size:0.75rem; color:#6b7280; white-space:nowrap;">Km</span>
+                            </div>
+                        </div>
+                        <p style="font-size:0.7rem; color:#9ca3af; margin-top:4px;">Lingkaran radius dari titik pabrik.</p>
+                    </div>
+                    <div id="panel-isochrone" style="display:none;">
+                        <select id="isochrone-select" class="select-input">
+                            <option value="10">10 Menit berkendara</option>
+                            <option value="15">15 Menit berkendara</option>
+                            <option value="30" selected>30 Menit berkendara</option>
+                            <option value="45">45 Menit berkendara</option>
+                            <option value="60">60 Menit berkendara</option>
+                            <option value="custom">... Opsional (isi sendiri)</option>
+                        </select>
+                        <div id="isochrone-custom-wrap" style="display:none;">
+                            <div style="display:flex; align-items:center; gap:6px; margin-top:6px;">
+                                <input type="number" id="isochrone-custom-input" class="select-input" min="1" max="180" placeholder="Contoh: 20" style="flex:1;">
+                                <span style="font-size:0.75rem; color:#6b7280; white-space:nowrap;">Menit</span>
+                            </div>
+                        </div>
+                        <p style="font-size:0.7rem; color:#9ca3af; margin-top:4px;">Area yang bisa dicapai via jalan nyata.</p>
+                        <div id="isochrone-status" style="display:none; font-size:0.75rem; color:#2563eb; margin-top:6px;"><i data-lucide="loader" class="icon-sm spinner"></i> Menghitung isochrone...</div>
+                    </div>
+                </section>
+
+                <hr style="border:none; border-top:1px solid #e5e7eb;">
+
+                <section aria-labelledby="title-mode">
+                    <h2 id="title-mode" class="section-title"><i data-lucide="sliders" style="width:16px; height:16px;"></i> Mode Analisis</h2>
+                    <div class="preset-grid">
+                        <button class="preset-btn" data-preset="need">Need-Based</button>
+                        <button class="preset-btn" data-preset="proximity">Proximity</button>
+                        <button class="preset-btn active" data-preset="balanced">Balanced</button>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <div class="weight-control"><label class="weight-label"><span>Kebutuhan Sosial</span><span id="val-need">34%</span></label><input type="range" id="slider-need" min="0" max="100" value="34"></div>
+                        <div class="weight-control"><label class="weight-label"><span>Kedekatan Pabrik</span><span id="val-proximity">33%</span></label><input type="range" id="slider-proximity" min="0" max="100" value="33"></div>
+                        <div class="weight-control"><label class="weight-label"><span>Potensi Branding</span><span id="val-branding">33%</span></label><input type="range" id="slider-branding" min="0" max="100" value="33"></div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="content-visual" class="scroll-content" style="display:none; background: #f9fafb;">
+                
+                <div id="visual-empty-state" class="empty-state" style="padding: 1rem; border: 1px dashed #d1d5db; border-radius: 8px;">
+                    <i data-lucide="lock" style="width:32px; height:32px; color:#9ca3af; margin-bottom:8px;"></i>
+                    <p style="font-size:0.8rem; color:#6b7280;">Lakukan analisis terlebih dahulu untuk membuka hasil analisis.</p>
+                </div>
+
+                <div id="visual-controls-container" style="display:none; flex-direction:column; gap:1rem;">
+                    <section>
+                        <h2 class="section-title"><i data-lucide="palette" class="icon-sm"></i> Kustomisasi Simbol Peta</h2>
+                        
+                        <div class="visual-config-card">
+                            <label class="config-label">Lokasi Perusahaan (Pin Pabrik)</label>
+                            <div class="config-row">
+                                <input type="color" id="color-factory" value="#dc2626" class="color-picker" title="Ubah Warna Pabrik">
+                                <div class="config-sliders">
+                                    <div class="config-slider-group">
+                                        <span class="slider-hint">Ukuran Simbol</span>
+                                        <input type="range" id="size-factory" min="16" max="40" value="24">
+                                    </div>
+                                    <div class="config-slider-group">
+                                        <span class="slider-hint">Transparansi</span>
+                                        <input type="range" id="opacity-factory" min="0" max="100" value="100">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="visual-config-card">
+                            <label class="config-label">Desa Prioritas / Rekomendasi</label>
+                            <div class="config-row">
+                                <input type="color" id="color-priority" value="#10b981" class="color-picker" title="Ubah Warna Prioritas">
+                                <div class="config-sliders">
+                                    <div class="config-slider-group">
+                                        <span class="slider-hint">Ukuran Simbol</span>
+                                        <input type="range" id="size-priority" min="4" max="20" value="7">
+                                    </div>
+                                    <div class="config-slider-group">
+                                        <span class="slider-hint">Transparansi</span>
+                                        <input type="range" id="opacity-priority" min="0" max="100" value="100">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="visual-config-card">
+                            <label class="config-label">Desa Lainnya (Dalam Radius)</label>
+                            <div class="config-row">
+                                <input type="color" id="color-other" value="#eab308" class="color-picker" title="Ubah Warna Desa Lain">
+                                <div class="config-sliders">
+                                    <div class="config-slider-group">
+                                        <span class="slider-hint">Ukuran Simbol</span>
+                                        <input type="range" id="size-other" min="3" max="15" value="5">
+                                    </div>
+                                    <div class="config-slider-group">
+                                        <span class="slider-hint">Transparansi</span>
+                                        <input type="range" id="opacity-other" min="0" max="100" value="100">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
+
+                    <!-- ── UNDUH PETA ── -->
+                    <section>
+                        <h2 class="section-title"><i data-lucide="download" class="icon-sm"></i> Unduh Hasil Peta</h2>
+                        <div class="visual-config-card">
+                            <p style="font-size:0.72rem; color:#6b7280; line-height:1.5;">Simpan tampilan peta saat ini sebagai gambar atau dokumen PDF.</p>
+                            <div style="display:flex; gap:8px; margin-top:4px;">
+                                <button id="btn-download-png" class="btn btn-outline" style="flex:1; font-size:0.75rem; gap:6px;">
+                                    <i data-lucide="image" style="width:14px;height:14px;"></i> PNG
+                                </button>
+                                <button id="btn-download-pdf" class="btn btn-outline" style="flex:1; font-size:0.75rem; gap:6px;">
+                                    <i data-lucide="file-text" style="width:14px;height:14px;"></i> PDF
+                                </button>
+                            </div>
+                            <p id="download-status" style="font-size:0.68rem; color:#2563eb; display:none; text-align:center; margin-top:6px;">
+                                <i data-lucide="loader" style="width:12px;height:12px;" class="spinner"></i> Memproses...
+                            </p>
+                        </div>
+                    </section>
+
+                </div><!-- /visual-controls-container -->
+            </div><!-- /content-visual -->
+        </aside>
+
+        <!-- ══════════════════════════════════
+             AREA PETA
+        ══════════════════════════════════ -->
+        <main class="map-main" aria-label="Peta Interaktif">
+            <div id="map"></div>
+            <div class="bottom-context-panel">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button id="btn-toggle-heatmap" class="context-toggle-btn active" onclick="toggleHeatmap()">
+                        <div class="status-dot on"></div> Heatmap Kepadatan
+                    </button>
+                    <input type="range" id="heatmap-opacity" min="0" max="100" value="90" style="width: 60px;" title="Transparansi Heatmap">
+                </div>
+            </div>
+            <!-- Legend -->
+            <figure class="legend-box map-legend-left" id="map-legend">
+                <figcaption class="legend-title-sm" id="legend-title">Konsentrasi sebaran desa</figcaption>
+                <div class="heatmap-bar-wrap">
+                    <span>Rendah</span>
+                    <div class="heatmap-gradient-bar"></div>
+                    <span>Tinggi</span>
+                </div>
+            </figure>
+
+            <div class="legend-box analysis-legend-right hidden-legend" id="analysis-legend">
+                
+                <div class="legend-toggle-btn" id="legend-toggle-btn" title="Minimize">
+                    <i data-lucide="chevron-down" id="legend-toggle-icon" class="icon-sm"></i>
+                </div>
+
+                <div id="legend-content">
+                    <div class="legend-header-border">
+                        <h4 id="legend-editable-title" class="legend-label-text" contenteditable="true" title="Klik untuk edit" style="font-weight: 700;">Rekomendasi Desa</h4>
+                    </div>
+
+                    <div class="legend-list-group">
+                        <div class="legend-item-row">
+                            <div class="legend-dot dot-factory"></div>
+                            <span class="legend-label-text" id="label-factory" contenteditable="true" title="Klik untuk edit">Lokasi Pabrik</span>
+                        </div>
+                        <div class="legend-item-row">
+                            <div class="legend-dot dot-priority"></div>
+                            <span class="legend-label-text" id="label-priority" contenteditable="true" title="Klik untuk edit">Desa Prioritas</span>
+                        </div>
+                        <div class="legend-item-row">
+                            <div class="legend-dot dot-other"></div>
+                            <span class="legend-label-text" id="label-other" contenteditable="true" title="Klik untuk edit">Desa Lainnya</span>
+                        </div>
+                        <div class="legend-item-row">
+                            <div class="legend-box-area"></div>
+                            <span class="legend-label-text" id="legend-reach-text" contenteditable="true" title="Klik untuk edit">Jangkauan 10 Km</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ══════════════════════════════════
+             SIDEBAR KANAN — Panel Hasil
+        ══════════════════════════════════ -->
+        <aside id="result-panel" class="sidebar sidebar-right panel-hidden" aria-label="Panel Rekomendasi">
+            
+            <button id="toggle-panel-btn" class="toggle-panel-btn" aria-label="Sembunyikan atau Tampilkan Panel">
+                <i data-lucide="chevron-left" style="width:20px; height:20px;" id="toggle-icon"></i>
+            </button>
+
+            <header class="header-box" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 class="header-title" style="font-size:1.125rem; display:flex; align-items:center; gap:8px;">
+                        <i data-lucide="trophy" style="color:#eab308; width:20px; height:20px;"></i> Rekomendasi
+                    </h2>
+                    <span id="village-count" class="badge-count" aria-live="polite">0 Ditemukan</span>
+                </div>
+
+                <div id="toolbar-card" style="display: flex; justify-content: space-between; align-items: center; background: #f9fafb; padding: 6px 10px; border-radius: 6px; border: 1px solid #e5e7eb;">
+                    <label for="card-limit-select" style="font-size: 0.75rem; color: #4b5563; font-weight: 500;">Tampilkan:</label>
+                    <select id="card-limit-select" class="select-input" style="width: auto; padding: 4px 24px 4px 8px; font-size: 0.75rem; border: none; background: transparent; cursor: pointer;">
+                        <option value="3">Top 3 Desa</option>
+                        <option value="5" selected>Top 5 Desa</option>
+                        <option value="10">Top 10 Desa</option>
+                        <option value="15">Top 15 Desa</option>
+                        <option value="all">Semua Desa</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div class="view-toggle-group" role="group" aria-label="Mode Ranking">
+                        <button id="btn-rank-global" class="view-toggle-btn active" onclick="setRankingMode('global')">
+                            <i data-lucide="globe" style="width:13px;height:13px;"></i> Global
+                        </button>
+                        <button id="btn-rank-local" class="view-toggle-btn" onclick="setRankingMode('local')">
+                            <i data-lucide="pie-chart" style="width:13px;height:13px;"></i> Jatah Per Pabrik
+                        </button>
+                    </div>
+                    <p id="ranking-mode-desc" style="font-size: 0.65rem; color: #4b5563; text-align: center; line-height: 1.3; background: #f3f4f6; padding: 6px; border-radius: 4px; border: 1px dashed #d1d5db;">
+                        Mencari desa dengan skor terbaik secara keseluruhan tanpa membedakan wilayah pabrik.
+                    </p>
+                </div>
+
+                <div class="view-toggle-group" role="group" aria-label="Mode Tampilan">
+                    <button id="btn-view-card" class="view-toggle-btn active" onclick="setViewMode('card')">
+                        <i data-lucide="layout-list" style="width:13px;height:13px;"></i> Kartu
+                    </button>
+                    <button id="btn-view-table" class="view-toggle-btn" onclick="setViewMode('table')">
+                        <i data-lucide="table-2" style="width:13px;height:13px;"></i> Tabel
+                    </button>
+                </div>
+
+                <div id="toolbar-table" style="display:none; flex-direction:column; gap:6px;">
+                    
+                    <div style="display:flex; gap:6px; align-items:center; background: #f9fafb; padding: 4px; border-radius: 4px;">
+                        <label style="font-size:0.7rem; color:#4b5563; font-weight:500; white-space:nowrap;">Status di Tabel:</label>
+                        <select id="table-limit-filter" class="select-input" style="flex:1; padding:4px 8px; font-size:0.72rem; background:transparent; border:none;">
+                            <option value="all" selected>Semua Desa di Jangkauan</option>
+                            <option value="recommendation">Hanya Top Rekomendasi</option>
+                            <option value="kartu_rekomendasi">&#9733; Desa Rekomendasi (= Kartu)</option>
+                        </select>
+                    </div>
+
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <label style="font-size:0.7rem; color:#4b5563; font-weight:500; white-space:nowrap;">Filter SES:</label>
+                        <select id="ses-filter" class="select-input" style="flex:1; padding:4px 8px; font-size:0.72rem;">
+                            <option value="all">Semua SES</option>
+                            <option value="Atas">Atas</option>
+                            <option value="Menengah Atas">Menengah Atas</option>
+                            <option value="Menengah">Menengah</option>
+                            <option value="Menengah Bawah">Menengah Bawah</option>
+                            <option value="Bawah">Bawah</option>
+                        </select>
+                        <button id="btn-export-xlsx" class="btn-export-icon" title="Export ke Excel">
+                            <i data-lucide="file-spreadsheet" style="width:11px;height:11px;"></i>
+                        </button>
+                        <button id="btn-export-csv" class="btn-export-icon btn-export-csv-icon" title="Export ke CSV">
+                            <i data-lucide="file-text" style="width:11px;height:11px;"></i>
+                        </button>
+                    </div>
+                    <div id="overlap-info" style="display:none; font-size:0.68rem; background:#eff6ff; color:#1e40af; padding:5px 8px; border-radius:5px; border:1px solid #dbeafe; line-height:1.4;">
+                        <i data-lucide="info" style="width:11px;height:11px;"></i>
+                        <span id="overlap-info-text"></span>
+                    </div>
+                </div>
+            </header>
+
+            <div id="empty-state" class="empty-state">
+                <i data-lucide="map" style="width:48px; height:48px; color:#d1d5db; margin-bottom:12px; margin-left:auto; margin-right:auto;"></i>
+                <p style="font-size:0.875rem;">Tentukan lokasi perusahaan/pabrik pada peta untuk melihat hasil analisis spasial.</p>
+            </div>
+
+            <section id="results-container" class="results-container hidden" aria-label="Daftar Desa Prioritas"></section>
+
+            <!-- Tabel Perbandingan -->
+            <div id="table-container" class="table-container hidden" aria-label="Tabel Perbandingan Desa">
+                <div class="table-scroll-wrap">
+                    <table id="comparison-table" class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th class="th-sortable" data-col="rank">#<span class="sort-icon">↕</span></th>
+                                <th class="th-sortable" data-col="DESA">Desa<span class="sort-icon">↕</span></th>
+                                <th class="th-sortable" data-col="KECAMATAN">Kecamatan<span class="sort-icon">↕</span></th>
+                                <th class="th-sortable" data-col="KABKOT">Kabupaten<span class="sort-icon">↕</span></th>
+                                <th>Pabrik Terdekat</th>
+                                <th class="th-sortable" data-col="skor_need">Need<span class="sort-icon">↕</span></th>
+                                <th class="th-sortable" data-col="normDist">Prox<span class="sort-icon">↕</span></th>
+                                <th class="th-sortable" data-col="skor_branding">Branding<span class="sort-icon">↕</span></th>
+                                <th class="th-sortable" data-col="score">Total<span class="sort-icon">↕</span></th>
+                                <th class="th-sortable" data-col="SOCIOECONO">SES<span class="sort-icon">↕</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- Script utama -->
+    <script src="map-app.js"></script>
+</body>
+</html>
